@@ -12,3 +12,4 @@
 - Требуется Flutter 3.19.6+
 - `flutter pub get`
 - `flutter run`
+.
