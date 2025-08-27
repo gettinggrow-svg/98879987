@@ -1,46 +1,70 @@
 name: Build Flutter APK
 
 on:
-  push:
-    branches: [ "main" ]
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.6'
-          channel: 'stable'
+          flutter-version: "3.19.6"
 
-      - name: Flutter pub get
-        run: flutter pub get
+      - name: Create android/ and ios/ folders
+        run: flutter create . --platforms=android,ios,web --project-name youtube_mirror
 
-      - name: Generate Android/iOS folders (embedding v2)
-        run: flutter create . --platforms=android,ios,web
-
-      - name: Ensure INTERNET permission in AndroidManifest
+      - name: Fix AndroidManifest.xml
         run: |
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q 'uses-permission android:name="android.permission.INTERNET"' "$MANIFEST"; then
-            sed -i '0,/<manifest/s//<manifest>\n    <uses-permission android:name="android.permission.INTERNET" \/>/' "$MANIFEST"
-          fi
-          echo "AndroidManifest updated:"
-          head -n 20 "$MANIFEST"
+          cat > android/app/src/main/AndroidManifest.xml <<'EOF'
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.example.youtube_mirror">
 
-      - name: Flutter pub get (again, after create)
+              <uses-permission android:name="android.permission.INTERNET"/>
+
+              <application
+                  android:label="youtube_mirror"
+                  android:name="${applicationName}"
+                  android:icon="@mipmap/ic_launcher">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:launchMode="singleTop"
+                      android:theme="@style/LaunchTheme"
+                      android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
+                      android:hardwareAccelerated="true"
+                      android:windowSoftInputMode="adjustResize">
+                      <meta-data
+                          android:name="io.flutter.embedding.android.NormalTheme"
+                          android:resource="@style/NormalTheme"
+                          />
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+                  <meta-data
+                      android:name="flutterEmbedding"
+                      android:value="2" />
+              </application>
+          </manifest>
+          EOF
+
+      - name: Get dependencies
         run: flutter pub get
 
       - name: Build release APK
         run: flutter build apk --release
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: youtube-mirror-apk
